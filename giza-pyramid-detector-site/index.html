@@ -23,14 +23,16 @@
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--display); display: flex; flex-direction: column; }
 .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px 8px; flex-wrap: wrap; }
+header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding-block: 10px 6px; }
+header .status { grid-column: 1 / -1; grid-row: 2; }
+@media (max-width: 560px) { h1 small { display: none; } }
 h1 { margin: 0; font-size: 18px; letter-spacing: .01em; text-wrap: balance; }
 h1 small { color: var(--muted); font-weight: 500; font-size: 12px; margin-left: 6px; }
 .status { font: 500 12px var(--mono); color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 6px; vertical-align: 1px; }
 .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
 main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding-block: 4px 12px; }
-.stage { position: relative; flex: 1; min-height: 240px; background: #000; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid; place-items: center; }
+.stage { position: relative; flex: 1; min-height: 360px; background: #000; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid; place-items: center; }
 .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
 .stage .msg { position: absolute; inset: auto 12px 12px 12px; font: 12px var(--mono); color: var(--fg); background: rgba(18,16,13,.82); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .pose { position: absolute; top: 44px; left: 10px; right: 10px; font: 500 12px var(--mono); background: rgba(18,16,13,.8); padding: 6px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; white-space: pre-wrap; }
@@ -39,6 +41,8 @@ main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px;
 .modes .mode { background: transparent; color: var(--muted); border-radius: 0; padding: 10px 6px; font-size: 13px; border-left: 1px solid var(--line); }
 .modes .mode:first-child { border-left: 0; }
 .modes .mode[aria-pressed="true"] { background: var(--panel); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+button.tiny { padding: 6px 12px; font-size: 13px; }
+.more { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .dock { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 button, .btn { font: 600 14px var(--display); color: var(--bg); background: var(--accent); border: 0; border-radius: 9px; padding: 12px 14px; cursor: pointer; text-align: center; }
 button.ghost, .btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
@@ -57,6 +61,7 @@ button:disabled { opacity: .45; cursor: default; }
   <header>
     <h1>Giza Pyramid Detector <small>YOLO26n-pose · synthetic v1</small></h1>
     <div class="status"><span id="st"><span class="dot"></span>Loading model…</span><span id="perf"></span></div>
+    <button class="ghost tiny" id="gear" aria-expanded="false" aria-controls="more">Settings</button>
   </header>
   <main>
     <div class="stage" id="stage">
@@ -76,6 +81,7 @@ button:disabled { opacity: .45; cursor: default; }
       <label class="btn">Record video<input id="video" type="file" accept="video/*" capture="environment"></label>
       <label class="btn ghost">From gallery<input id="pick" type="file" accept="image/*,video/*"></label>
     </div>
+    <div id="more" class="more" hidden>
     <div class="settings">
       <label for="thr">Min score <input id="thr" type="range" min="0.2" max="0.9" step="0.05" value="0.5"> <span id="thrv">0.50</span></label>
       <label for="rate">Video speed
@@ -89,6 +95,7 @@ button:disabled { opacity: .45; cursor: default; }
       <button class="ghost" id="stop" style="padding:6px 10px">Stop</button>
     </div>
     <div class="legend"><span><i style="background:var(--k-apex)"></i>Apex</span><span><i style="background:var(--k-l)"></i>L corner</span><span><i style="background:var(--k-r)"></i>R corner</span><span><i style="background:var(--k-n)"></i>N near</span><span><i style="background:var(--k-f)"></i>F far</span><span>hollow = hidden / unsure</span></div>
+    </div>
   </main>
 </div>
 
@@ -163,6 +170,7 @@ function fitCanvas(w, h) { if (view.width !== w || view.height !== h) { view.wid
 let poseState = null, tilt = null, lastPose = null;
 const fovDeg = () => parseFloat($('fov').value);
 $('fov').oninput = () => { $('fovv').textContent = fovDeg() + '°'; poseState = null; if (still) runStill(still); };
+$('gear').onclick = () => { const open = $('more').hidden; $('more').hidden = !open; $('gear').setAttribute('aria-expanded', String(open)); $('gear').textContent = open ? 'Close' : 'Settings'; };
 let mode = 'ring';
 document.querySelectorAll('.mode').forEach(b => b.onclick = () => {
   mode = b.dataset.mode; document.querySelectorAll('.mode').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
