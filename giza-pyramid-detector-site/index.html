@@ -248,8 +248,8 @@ function drawRing(ps, w, h) {
 // modes: det = detected points only; mesh = 3D mesh + measurements; ring = mesh + the ring inserted on it
 function drawPose(ps, w) {
   if (!ps || mode === 'det') return;
-  if (mode === 'ring') { drawRing(ps, w, view.height); return; }   // ring only: the mesh stays invisible
   drawMesh(ps, w);
+  if (mode === 'ring') drawRing(ps, w, view.height);
 }
 function drawMesh(ps, w) {
   const P = pyr(), step = +$('step').value / 100, L = Math.max(2, w / 360);
