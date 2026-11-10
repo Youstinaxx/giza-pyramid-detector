@@ -171,7 +171,7 @@ async function runStill(img) {
 }
 
 function loopMedia(el, isLive) {
-  stopAll(false); mediaEl = el; const token = {}; running = token; prev = null; times = [];
+  mediaEl = el; const token = {}; running = token; prev = null; times = []; still = null;
   let last = { dets: [] };
   const frame = async () => {
     if (running !== token) return;
@@ -194,12 +194,25 @@ function stopAll(clearStill = true) {
 }
 $('stop').onclick = () => { stopAll(false); msg('Stopped'); };
 
+// Back camera first: exact 'environment', then a device labelled back/rear, then whatever the browser gives.
+async function openBackCamera() {
+  const size = { width: { ideal: 1280 }, height: { ideal: 720 } };
+  try { return await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' }, ...size }, audio: false }); } catch (e) {}
+  const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, ...size }, audio: false });
+  const cur = s.getVideoTracks()[0];
+  if (/back|rear|environment|خلف/i.test(cur.label) || cur.getSettings().facingMode === 'environment') return s;
+  const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  const back = cams.find(d => /back|rear|environment|خلف/i.test(d.label));
+  if (!back) return s;
+  s.getTracks().forEach(t => t.stop());
+  return navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: back.deviceId }, ...size }, audio: false });
+}
 $('live').onclick = async () => {
   msg('');
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('no camera API');
     stopAll();
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    stream = await openBackCamera();
     const v = document.createElement('video'); v.playsInline = true; v.muted = true; v.srcObject = stream; await v.play();
     loopMedia(v, true);
   } catch (e) {
